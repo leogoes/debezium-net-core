@@ -3,7 +3,7 @@ using Secondary.Application.Domain;
 
 namespace Secondary.Application.Context
 {
-    public class LegacyContext(DbContextOptions options) : DbContext(options)
+    public class SecondaryContext(DbContextOptions options) : DbContext(options)
     {
         public DbSet<Order> Orders { get; set; }
 

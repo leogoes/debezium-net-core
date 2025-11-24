@@ -1,5 +1,6 @@
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
+using Primary.Application.Context;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -8,7 +9,7 @@ builder.Services.AddSwaggerGen();
 
 var serverVersion = new MySqlServerVersion(new Version(8, 0, 40));
 
-builder.Services.AddDbContext<LegacyContext>(
+builder.Services.AddDbContext<PrimaryContext>(
     dbContextOptions => dbContextOptions
         .UseMySql("Server=localhost;Port=3306;Database=db_debezium;Uid=root;Pwd=root", serverVersion)
         .LogTo(Console.WriteLine, LogLevel.Information)

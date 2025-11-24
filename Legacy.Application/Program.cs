@@ -2,8 +2,6 @@ using Bogus;
 using Legacy.Application.Context;
 using Legacy.Application.Domain;
 using Microsoft.EntityFrameworkCore;
-using OpenTelemetry.Resources;
-using OpenTelemetry.Trace;
 using Person = Legacy.Application.Domain.Person;
 
 var builder = WebApplication.CreateBuilder(args);
