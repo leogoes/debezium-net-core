@@ -1,0 +1,6 @@
+@Secondary.Application_HostAddress = http://localhost:5119
+
+GET {{Secondary.Application_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
