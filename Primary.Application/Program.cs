@@ -1,6 +1,8 @@
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
+using Primary.Application.Consumers;
 using Primary.Application.Context;
+using System.Net.Mime;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,7 +23,7 @@ builder.Services.AddMassTransit(cfg =>
 {
     cfg.SetKebabCaseEndpointNameFormatter();
 
-    cfg.AddConsumers(typeof(Program).Assembly);
+    cfg.AddConsumer<PersonCreateConsumer>();
 
     cfg.UsingRabbitMq((context, transport) =>
     {
@@ -31,11 +33,15 @@ builder.Services.AddMassTransit(cfg =>
             h.Password("guest");
         });
 
+        transport.ReceiveEndpoint("person-create-app", e =>
+        {
+            e.ConfigureConsumeTopology = false;
+            e.DefaultContentType = new ContentType("application/json");
+            e.UseRawJsonSerializer();
+            e.Consumer<PersonCreateConsumer>(context);
+        });
 
         transport.UseRawJsonSerializer();
-
-        transport.UseInMemoryOutbox(context);
-
         transport.ConfigureEndpoints(context);
     });
 });

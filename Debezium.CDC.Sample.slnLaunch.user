@@ -1,0 +1,15 @@
+[
+  {
+    "Name": "New Profile",
+    "Projects": [
+      {
+        "Path": "Legacy.Application\\Legacy.Application.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "Primary.Application\\Primary.Application.csproj",
+        "Action": "Start"
+      }
+    ]
+  }
+]

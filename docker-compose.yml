@@ -1,46 +1,53 @@
 services:
-	rabbitmq:
-		image: rabbitmq:3-management
-		container_name: rabbitmq
-		hostname: rabbitmq
-		ports:
-			- "5672:5672"
-			- "15672:15672"
-		environment:
-			RABBITMQ_DEFAULT_USER: guest
-			RABBITMQ_DEFAULT_PASS: guest
-		volumes:
-			- ./.containers/rabbitmq/data/:/var/lib/rabbitmq
-			- ./.containers/rabbitmq/data/:/var/log/rabbitmq
-		
-	debezium:
-		image: debezium/server:2.7
-		container_name: debezium
-		depends_on:
-			- rabbitmq
-		environment:
-			#Debezium configuration
-			DEBEZIUM_SERVER_NAME: debezium-server
-			DEBEZIUM_SOURCE_OFFSET_STORAGE_FILE_FILENAME: /debezium/data/offsets.dat
-			DEBEZIUM_SOURCE_OFFSET_FLUSH_INTERVAL_MS: 60000							
-			DEBEZIUM_SOURCE_TOMBSTONES_ON_DELETE: false								
-			QUARKUS_LOG_CONSOLE_JSON: false			
-			
-			#Mysql Configuration
-			DEBEZIUM_SOURCE_CONNECTOR_CLASS: io.debezium.connector.mysql.MySqlConnector
-			DEBEZIUM_SOURCE_DATABASE_HOSTNAME: mysql
-			DEBEZIUM_SOURCE_DATABASE_PORT: 3306
-			DEBEZIUM_SOURCE_DATABASE_USER: root
-			DEBEZIUM_SOURCE_DATABASE_PASSWORD: root
-			DEBEZIUM_SOURCE_DATABASE_SERVER_ID: 1000
-			DEBEZIUM_SOURCE_DATABASE_SERVER_NAME: inventory
-			DEBEZIUM_SOURCE_DATABASE_INCLUDE_LIST: inventory
-			DEBEZIUM_SOURCE_TOPIC_PREFIX: inventory
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    hostname: rabbitmq
+    ports:
+        - "5672:5672"
+        - "15672:15672"
+    environment:
+        RABBITMQ_DEFAULT_USER: guest
+        RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+        - ./.containers/rabbitmq/data:/var/lib/rabbitmq
+        - ./.containers/rabbitmq/logs:/var/log/rabbitmq
+    healthcheck:
+        test: ["CMD", "rabbitmq-diagnostics", "ping"]
+        interval: 30s
+        timeout: 10s
+        retries: 5
+        start_period: 5s
 
-			# RabbitMQ sink configuration
-			DEBEZIUM_SINK_TYPE: rabbitmq
-			DEBEZIUM_SINK_RABBITMQ_CONNECTION_HOST: rabbitmq
-			DEBEZIUM_SINK_RABBITMQ_CONNECTION_PORT: 5672
-			DEBEZIUM_SINK_RABBITMQ_CONNECTION_USERNAME: guest
-			DEBEZIUM_SINK_RABBITMQ_CONNECTION_PASSWORD: guest
-			DEBEZIUM_SINK_RABBITMQ_EXCHANGE_NAME: product-updates
+  debezium:
+    image: debezium/server:2.5
+    container_name: Debezium
+    depends_on:
+        - rabbitmq
+    environment:
+        # Debezium configuration
+        - DEBEZIUM_SERVER_NAME=debezium-server
+        - DEBEZIUM_SOURCE_OFFSET_STORAGE_FILE_FILENAME=/debezium/data/offsets.dat
+        - DEBEZIUM_SOURCE_OFFSET_FLUSH_INTERVAL_MS=60000
+        - DEBEZIUM_SOURCE_TOMBSTONES_ON_DELETE=false
+        - QUARKUS_LOG_CONSOLE_JSON=false
+
+        # MySQL configuration (ensure a `mysql` service exists or reachable at this hostname)
+        - DEBEZIUM_SOURCE_CONNECTOR_CLASS=io.debezium.connector.mysql.MySqlConnector
+        - DEBEZIUM_SOURCE_DATABASE_SERVER_ID=183086
+        - DEBEZIUM_SOURCE_DATABASE_HOSTNAME=host.docker.internal
+        - DEBEZIUM_SOURCE_DATABASE_PORT=3306
+        - DEBEZIUM_SOURCE_DATABASE_USER=root
+        - DEBEZIUM_SOURCE_DATABASE_PASSWORD=root
+        - DEBEZIUM_SOURCE_DATABASE_DBNAME=db_debezium
+        - DEBEZIUM_SOURCE_SCHEMA_INCLUDE_LIST=persons
+        - DEBEZIUM_SOURCE_TABLE_INCLUDE_LIST=persons
+        - DEBEZIUM_SOURCE_TOPIC_PREFIX=app
+
+        # RabbitMQ sink configuration
+        - DEBEZIUM_SINK_TYPE=rabbitmq
+        - DEBEZIUM_SINK_RABBITMQ_CONNECTION_HOST=rabbitmq
+        - DEBEZIUM_SINK_RABBITMQ_CONNECTION_PORT=5672
+        - DEBEZIUM_SINK_RABBITMQ_CONNECTION_USERNAME=guest
+        - DEBEZIUM_SINK_RABBITMQ_CONNECTION_PASSWORD=guest
+        - DEBEZIUM_SINK_RABBITMQ_EXCHANGE_NAME=person-create

@@ -27,21 +27,28 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-using (IServiceScope scope = app.Services.CreateScope())
+app.MapPost("/api/seed-faker", async (int? count, LegacyContext db) =>
 {
-    var services = scope.ServiceProvider;
-    var context = services.GetRequiredService<LegacyContext>();
+    int seedCount = count.GetValueOrDefault(10);
 
-    await context.Orders.AddRangeAsync(new Faker<Order>()
+    var orders = new Faker<Order>()
         .RuleFor(x => x.Protocol, d => d.Hashids.ToString())
         .RuleFor(x => x.Number, d => d.Commerce.Ean13())
-        .Generate(10));
+        .Generate(seedCount);
 
-    await context.Persons.AddRangeAsync(new Faker<Person>()
-    .RuleFor(x => x.Name, d => d.Person.FirstName)
-    .RuleFor(x => x.Email, d => d.Person.Email)
-    .Generate(10));
-}
+    var persons = new Faker<Person>()
+        .RuleFor(x => x.Name, d => d.Person.FirstName)
+        .RuleFor(x => x.Email, d => d.Person.Email)
+        .Generate(seedCount);
+
+    await db.Orders.AddRangeAsync(orders);
+    await db.Persons.AddRangeAsync(persons);
+    await db.SaveChangesAsync();
+
+    return Results.Ok(new { Orders = orders.Count, Persons = persons.Count });
+})
+.WithName("SeedFaker")
+.Produces(StatusCodes.Status200OK);
 
 
 app.Run();
