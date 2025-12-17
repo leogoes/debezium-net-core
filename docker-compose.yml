@@ -1,4 +1,14 @@
 services:
+  mysql:
+    image: mysql:8.0.40
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_USER: leo
+    volumes:
+      - ./my.cnf:/etc/mysql/my.cnf
+    ports:
+      - 3306:3306
+
   rabbitmq:
     image: rabbitmq:3-management
     container_name: rabbitmq
@@ -24,30 +34,34 @@ services:
     container_name: Debezium
     depends_on:
         - rabbitmq
+        - mysql
     environment:
-        # Debezium configuration
-        - DEBEZIUM_SERVER_NAME=debezium-server
-        - DEBEZIUM_SOURCE_OFFSET_STORAGE_FILE_FILENAME=/debezium/data/offsets.dat
-        - DEBEZIUM_SOURCE_OFFSET_FLUSH_INTERVAL_MS=60000
-        - DEBEZIUM_SOURCE_TOMBSTONES_ON_DELETE=false
-        - QUARKUS_LOG_CONSOLE_JSON=false
+        DEBEZIUM_SERVER_NAME: debezium-server
+        DEBEZIUM_SOURCE_OFFSET_STORAGE_FILE_FILENAME: /debezium/data/offsets.dat
+        DEBEZIUM_SOURCE_OFFSET_FLUSH_INTERVAL_MS: 60000
+        DEBEZIUM_SOURCE_TOMBSTONES_ON_DELETE: false
+        QUARKUS_LOG_CONSOLE_JSON: false
 
-        # MySQL configuration (ensure a `mysql` service exists or reachable at this hostname)
-        - DEBEZIUM_SOURCE_CONNECTOR_CLASS=io.debezium.connector.mysql.MySqlConnector
-        - DEBEZIUM_SOURCE_DATABASE_SERVER_ID=183086
-        - DEBEZIUM_SOURCE_DATABASE_HOSTNAME=host.docker.internal
-        - DEBEZIUM_SOURCE_DATABASE_PORT=3306
-        - DEBEZIUM_SOURCE_DATABASE_USER=root
-        - DEBEZIUM_SOURCE_DATABASE_PASSWORD=root
-        - DEBEZIUM_SOURCE_DATABASE_DBNAME=db_debezium
-        - DEBEZIUM_SOURCE_SCHEMA_INCLUDE_LIST=persons
-        - DEBEZIUM_SOURCE_TABLE_INCLUDE_LIST=persons
-        - DEBEZIUM_SOURCE_TOPIC_PREFIX=app
+        DEBEZIUM_SOURCE_CONNECTOR_CLASS: io.debezium.connector.mysql.MySqlConnector
+        DEBEZIUM_SOURCE_DATABASE_SERVER_ID: 183088
+        DEBEZIUM_SOURCE_DATABASE_SERVER_NAME: mysql_server_1
+        DEBEZIUM_SOURCE_DATABASE_HOSTNAME: host.docker.internal
+        DEBEZIUM_SOURCE_DATABASE_PORT: 3306
+        DEBEZIUM_SOURCE_SCHEMA_HISTORY_INTERNAL: io.debezium.relational.history.MemorySchemaHistory
+        DEBEZIUM_SOURCE_SCHEMA_HISTORY_INTERNAL_RECOVERY_MODE: SCHEMA_ONLY_RECOVERY
+        DEBEZIUM_SOURCE_SNAPSHOT_MODE: initial
+        DEBEZIUM_SOURCE_DATABASE_USER: root
+        DEBEZIUM_SOURCE_DATABASE_PASSWORD: root
+        DEBEZIUM_SOURCE_DATABASE_DBNAME: db_debezium
+        DEBEZIUM_SOURCE_SCHEMA_INCLUDE_LIST: persons
+        DEBEZIUM_SOURCE_TABLE_INCLUDE_LIST: persons
+        DEBEZIUM_SOURCE_TOPIC_PREFIX: app
+        DEBEZIUM_SOURCE_DATABASE_SERVER_TIMEZONE: America/Sao_Paulo
 
-        # RabbitMQ sink configuration
-        - DEBEZIUM_SINK_TYPE=rabbitmq
-        - DEBEZIUM_SINK_RABBITMQ_CONNECTION_HOST=rabbitmq
-        - DEBEZIUM_SINK_RABBITMQ_CONNECTION_PORT=5672
-        - DEBEZIUM_SINK_RABBITMQ_CONNECTION_USERNAME=guest
-        - DEBEZIUM_SINK_RABBITMQ_CONNECTION_PASSWORD=guest
-        - DEBEZIUM_SINK_RABBITMQ_EXCHANGE_NAME=person-create
+        DEBEZIUM_SINK_TYPE: rabbitmq
+        DEBEZIUM_SINK_RABBITMQ_CONNECTION_HOST: rabbitmq
+        DEBEZIUM_SINK_RABBITMQ_CONNECTION_PORT: 5672
+        DEBEZIUM_SINK_RABBITMQ_CONNECTION_USERNAME: guest
+        DEBEZIUM_SINK_RABBITMQ_CONNECTION_PASSWORD: guest
+        DEBEZIUM_SINK_RABBITMQ_EXCHANGE_NAME: person-create
+        DEBEZIUM_SINK_RABBITMQ_EXCHANGE_AUTOCREATE: true
