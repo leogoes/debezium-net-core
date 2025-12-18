@@ -2,7 +2,7 @@ using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Primary.Application.Consumers;
 using Primary.Application.Context;
-using System.Net.Mime;
+using Primary.Application.Contracts;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,28 +21,22 @@ builder.Services.AddDbContext<PrimaryContext>(
 
 builder.Services.AddMassTransit(cfg =>
 {
-    cfg.SetKebabCaseEndpointNameFormatter();
-
-    cfg.AddConsumer<PersonCreateConsumer>();
-
-    cfg.UsingRabbitMq((context, transport) =>
+    cfg.UsingInMemory((context, cfg) => cfg.ConfigureEndpoints(context));
+    
+    cfg.AddRider(rider =>
     {
-        transport.Host("localhost", "/", h =>
-        {
-            h.Username("guest");
-            h.Password("guest");
-        });
+        rider.AddConsumer<PersonCreateConsumer>();
 
-        transport.ReceiveEndpoint("person-create-app", e =>
+        rider.UsingKafka((context, k) =>
         {
-            e.ConfigureConsumeTopology = false;
-            e.DefaultContentType = new ContentType("application/json");
-            e.UseRawJsonSerializer();
-            e.Consumer<PersonCreateConsumer>(context);
-        });
+            k.Host("127.0.0.1:29092");
 
-        transport.UseRawJsonSerializer();
-        transport.ConfigureEndpoints(context);
+            k.TopicEndpoint<PersonCreate>("app.persons", "person-create-app-group", e =>
+            {
+                e.ConfigureConsumer<PersonCreateConsumer>(context);
+                e.AutoOffsetReset = Confluent.Kafka.AutoOffsetReset.Earliest;
+            });
+        });
     });
 });
 

@@ -1,67 +1,60 @@
+version: '3.8'
 services:
   mysql:
     image: mysql:8.0.40
+    container_name: mysql
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_USER: leo
+      MYSQL_DATABASE: db_debezium 
     volumes:
       - ./my.cnf:/etc/mysql/my.cnf
     ports:
-      - 3306:3306
-
-  rabbitmq:
-    image: rabbitmq:3-management
-    container_name: rabbitmq
-    hostname: rabbitmq
-    ports:
-        - "5672:5672"
-        - "15672:15672"
-    environment:
-        RABBITMQ_DEFAULT_USER: guest
-        RABBITMQ_DEFAULT_PASS: guest
-    volumes:
-        - ./.containers/rabbitmq/data:/var/lib/rabbitmq
-        - ./.containers/rabbitmq/logs:/var/log/rabbitmq
+      - "3306:3306"
     healthcheck:
-        test: ["CMD", "rabbitmq-diagnostics", "ping"]
-        interval: 30s
-        timeout: 10s
+        test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD"]
+        interval: 10s
+        timeout: 5s
         retries: 5
-        start_period: 5s
 
-  debezium:
-    image: debezium/server:2.5
-    container_name: Debezium
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1
+    container_name: kafka
+    hostname: kafka
+    ports:
+      - "9092:9092"
+      - "29092:29092"
     depends_on:
-        - rabbitmq
-        - mysql
+      - mysql
     environment:
-        DEBEZIUM_SERVER_NAME: debezium-server
-        DEBEZIUM_SOURCE_OFFSET_STORAGE_FILE_FILENAME: /debezium/data/offsets.dat
-        DEBEZIUM_SOURCE_OFFSET_FLUSH_INTERVAL_MS: 60000
-        DEBEZIUM_SOURCE_TOMBSTONES_ON_DELETE: false
-        QUARKUS_LOG_CONSOLE_JSON: false
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,EXTERNAL://0.0.0.0:29092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_LOG_DIRS: /tmp/kraft-storage
 
-        DEBEZIUM_SOURCE_CONNECTOR_CLASS: io.debezium.connector.mysql.MySqlConnector
-        DEBEZIUM_SOURCE_DATABASE_SERVER_ID: 183088
-        DEBEZIUM_SOURCE_DATABASE_SERVER_NAME: mysql_server_1
-        DEBEZIUM_SOURCE_DATABASE_HOSTNAME: host.docker.internal
-        DEBEZIUM_SOURCE_DATABASE_PORT: 3306
-        DEBEZIUM_SOURCE_SCHEMA_HISTORY_INTERNAL: io.debezium.relational.history.MemorySchemaHistory
-        DEBEZIUM_SOURCE_SCHEMA_HISTORY_INTERNAL_RECOVERY_MODE: SCHEMA_ONLY_RECOVERY
-        DEBEZIUM_SOURCE_SNAPSHOT_MODE: initial
-        DEBEZIUM_SOURCE_DATABASE_USER: root
-        DEBEZIUM_SOURCE_DATABASE_PASSWORD: root
-        DEBEZIUM_SOURCE_DATABASE_DBNAME: db_debezium
-        DEBEZIUM_SOURCE_SCHEMA_INCLUDE_LIST: persons
-        DEBEZIUM_SOURCE_TABLE_INCLUDE_LIST: persons
-        DEBEZIUM_SOURCE_TOPIC_PREFIX: app
-        DEBEZIUM_SOURCE_DATABASE_SERVER_TIMEZONE: America/Sao_Paulo
-
-        DEBEZIUM_SINK_TYPE: rabbitmq
-        DEBEZIUM_SINK_RABBITMQ_CONNECTION_HOST: rabbitmq
-        DEBEZIUM_SINK_RABBITMQ_CONNECTION_PORT: 5672
-        DEBEZIUM_SINK_RABBITMQ_CONNECTION_USERNAME: guest
-        DEBEZIUM_SINK_RABBITMQ_CONNECTION_PASSWORD: guest
-        DEBEZIUM_SINK_RABBITMQ_EXCHANGE_NAME: person-create
-        DEBEZIUM_SINK_RABBITMQ_EXCHANGE_AUTOCREATE: true
+  debezium-connect:
+    image: debezium/connect:2.5
+    container_name: debezium-connect
+    ports:
+      - "8083:8083"
+    depends_on:
+      - kafka
+      - mysql
+    environment:
+      BOOTSTRAP_SERVERS: kafka:9092
+      GROUP_ID: debezium-connectors
+      CONFIG_STORAGE_TOPIC: kafka_connect_configs
+      OFFSET_STORAGE_TOPIC: kafka_connect_offsets
+      STATUS_STORAGE_TOPIC: kafka_connect_statuses
+      CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      STATUS_STORAGE_REPLICATION_FACTOR: 1
+      KAFKA_HEAP_OPTS: "-Xms512M -Xmx512M"
