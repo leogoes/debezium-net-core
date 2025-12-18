@@ -31,7 +31,7 @@ builder.Services.AddMassTransit(cfg =>
         {
             k.Host("127.0.0.1:29092");
 
-            k.TopicEndpoint<PersonCreate>("app.persons", "person-create-app-group", e =>
+            k.TopicEndpoint<PersonCreate>("app.db_debezium.Persons", "person-create-app-group", e =>
             {
                 e.ConfigureConsumer<PersonCreateConsumer>(context);
                 e.AutoOffsetReset = Confluent.Kafka.AutoOffsetReset.Earliest;
